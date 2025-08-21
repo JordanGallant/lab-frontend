@@ -4,7 +4,9 @@ import { useState, useEffect, JSX } from 'react';
 
 // Type definitions for MetaMask ethereum object
 interface EthereumProvider {
-  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  request(args: { method: 'eth_requestAccounts' }): Promise<string[]>;
+  request(args: { method: 'eth_accounts' }): Promise<string[]>;
+  request(args: { method: string; params?: string[] }): Promise<string>;
   on: (event: string, callback: (accounts: string[]) => void) => void;
   removeAllListeners: (event: string) => void;
   isMetaMask?: boolean;
@@ -20,7 +22,6 @@ declare global {
 export default function NavBar(): JSX.Element {
   const [account, setAccount] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [balance, setBalance] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
 
   // Check if MetaMask is installed
@@ -43,36 +44,14 @@ export default function NavBar(): JSX.Element {
       
       if (accounts.length > 0) {
         setAccount(accounts[0]);
-        await getBalance(accounts[0]);
       }
     } catch (error) {
       console.error('Error connecting to MetaMask:', error);
       alert('Failed to connect to MetaMask');
     }
     setIsConnecting(false);
-  };
-
-  // Get balance
-  const getBalance = async (address: string): Promise<void> => {
-    try {
-      const balance: string = await window.ethereum!.request({
-        method: 'eth_getBalance',
-        params: [address, 'latest']
-      });
-      const balanceInEth: string = (parseInt(balance, 16) / Math.pow(10, 18)).toFixed(4);
-      setBalance(balanceInEth);
-    } catch (error) {
-      console.error('Error getting balance:', error);
-    }
-  };
-
-  // Disconnect wallet
-  const disconnectWallet = (): void => {
-    setAccount('');
-    setBalance('');
-    setShowDropdown(false);
-  };
-
+  };  
+  
   // Format address for display
   const formatAddress = (address: string): string => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -84,16 +63,13 @@ export default function NavBar(): JSX.Element {
       const handleAccountsChanged = (accounts: string[]): void => {
         if (accounts.length === 0) {
           setAccount('');
-          setBalance('');
         } else {
           setAccount(accounts[0]);
-          getBalance(accounts[0]);
         }
       };
 
       const handleChainChanged = (): void => {
         if (account) {
-          getBalance(account);
         }
       };
 
@@ -105,7 +81,6 @@ export default function NavBar(): JSX.Element {
         .then((accounts: string[]) => {
           if (accounts.length > 0) {
             setAccount(accounts[0]);
-            getBalance(accounts[0]);
           }
         })
         .catch((error) => {
