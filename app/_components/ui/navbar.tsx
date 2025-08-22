@@ -2,13 +2,17 @@
 
 import { useState, useEffect, JSX } from 'react';
 
+// Type definitions for MetaMask ethereum object
 interface EthereumProvider {
-  request(args: { method: string; params?: any[] }): Promise<any>;
-  on: (event: string, callback: (...args: any[]) => void) => void;
+  request(args: { method: 'eth_requestAccounts' }): Promise<string[]>;
+  request(args: { method: 'eth_accounts' }): Promise<string[]>;
+  request(args: { method: string; params?: string[] }): Promise<string>;
+  on: (event: string, callback: (accounts: string[]) => void) => void;
   removeAllListeners: (event: string) => void;
   isMetaMask?: boolean;
 }
 
+// Extend Window interface to include ethereum
 declare global {
   interface Window {
     ethereum?: EthereumProvider;
@@ -20,16 +24,12 @@ export default function NavBar(): JSX.Element {
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
 
-  const isMetaMaskInstalled = (): boolean =>
-    typeof window !== 'undefined' && typeof window.ethereum !== 'undefined';
-
-  // Build RPC URL dynamically from the lab host
-  const getRpcUrl = () => {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:8545`;
+  // Check if MetaMask is installed
+  const isMetaMaskInstalled = (): boolean => {
+    return typeof window !== 'undefined' && typeof window.ethereum !== 'undefined';
   };
 
-  // Connect button: add network + request accounts
+  // Connect to MetaMask
   const connectWallet = async (): Promise<void> => {
     if (!isMetaMaskInstalled()) {
       alert('Please install MetaMask to use this feature');
@@ -38,68 +38,89 @@ export default function NavBar(): JSX.Element {
 
     setIsConnecting(true);
     try {
-      // Add Hardhat network
-      await window.ethereum!.request({
-        method: 'wallet_addEthereumChain',
-        params: [
-          {
-            chainId: '0x7a69', // 31337 decimal (Hardhat default)
-            chainName: 'Gochain Testnet',
-            nativeCurrency: { name: 'Go', symbol: 'Go', decimals: 18 },
-            rpcUrls: [getRpcUrl()],
-          },
-        ],
-      });
-
-      // Then request accounts
       const accounts: string[] = await window.ethereum!.request({
-        method: 'eth_requestAccounts',
+        method: 'eth_requestAccounts'
       });
-
-      if (accounts.length > 0) setAccount(accounts[0]);
+      
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+      }
     } catch (error) {
       console.error('Error connecting to MetaMask:', error);
       alert('Failed to connect to MetaMask');
     }
     setIsConnecting(false);
+  };  
+  
+  // Format address for display
+  const formatAddress = (address: string): string => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const formatAddress = (address: string): string =>
-    `${address.slice(0, 6)}...${address.slice(-4)}`;
-
+  // Listen for account changes
   useEffect(() => {
     if (isMetaMaskInstalled() && window.ethereum) {
       const handleAccountsChanged = (accounts: string[]): void => {
-        setAccount(accounts.length > 0 ? accounts[0] : '');
+        if (accounts.length === 0) {
+          setAccount('');
+        } else {
+          setAccount(accounts[0]);
+        }
+      };
+
+      const handleChainChanged = (): void => {
+        if (account) {
+        }
       };
 
       window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', () => window.location.reload());
+      window.ethereum.on('chainChanged', handleChainChanged);
 
       // Check if already connected
-      window.ethereum
-        .request({ method: 'eth_accounts' })
+      window.ethereum.request({ method: 'eth_accounts' })
         .then((accounts: string[]) => {
-          if (accounts.length > 0) setAccount(accounts[0]);
+          if (accounts.length > 0) {
+            setAccount(accounts[0]);
+          }
         })
-        .catch((err) =>
-          console.error('Error checking existing connection:', err),
-        );
+        .catch((error) => {
+          console.error('Error checking existing connection:', error);
+        });
 
       return () => {
-        window.ethereum?.removeAllListeners('accountsChanged');
-        window.ethereum?.removeAllListeners('chainChanged');
+        if (window.ethereum) {
+          window.ethereum.removeAllListeners('accountsChanged');
+          window.ethereum.removeAllListeners('chainChanged');
+        }
       };
     }
-  }, []);
+  }, [account]);
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo/Brand */}
           <div className="flex items-center">
-            <div className="text-xl font-bold text-gray-900">Your DApp</div>
+            <div className="text-xl font-bold text-gray-900">
+              Your DApp
+            </div>
           </div>
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-4">
+              <a href="#" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                Dashboard
+              </a>
+              <a href="#" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                Portfolio
+              </a>
+              <a href="#" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                About
+              </a>
+            </div>
+          </div>
+
+          {/* Wallet Connection */}
           <div className="flex items-center">
             {!account ? (
               <div>
@@ -108,12 +129,12 @@ export default function NavBar(): JSX.Element {
                     href="https://metamask.io/download/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center shadow-lg hover:shadow-xl"
                   >
                     Install MetaMask
                   </a>
                 ) : (
-                  <button
+                 <button
                     onClick={connectWallet}
                     disabled={isConnecting}
                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center shadow-lg hover:shadow-xl"
@@ -124,7 +145,9 @@ export default function NavBar(): JSX.Element {
                         Connecting...
                       </>
                     ) : (
-                      'Connect Wallet'
+                      <>
+                        Connect Wallet
+                      </>
                     )}
                   </button>
                 )}
