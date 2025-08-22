@@ -6,8 +6,8 @@ import { useState, useEffect, JSX } from 'react';
 interface EthereumProvider {
   request(args: { method: 'eth_requestAccounts' }): Promise<string[]>;
   request(args: { method: 'eth_accounts' }): Promise<string[]>;
-  request(args: { method: string; params?: any }): Promise<any>;
-  on: (event: string, callback: (...args: any[]) => void) => void;
+  request(args: { method: string; params?: string[] }): Promise<string>;
+  on: (event: string, callback: (accounts: string[]) => void) => void;
   removeAllListeners: (event: string) => void;
   isMetaMask?: boolean;
 }
@@ -57,21 +57,7 @@ export default function NavBar(): JSX.Element {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  // Force reset to Ethereum Mainnet when page opens
-  useEffect(() => {
-    const switchToMainnet = async () => {
-      if (!window.ethereum) return;
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x1' }], // Ethereum Mainnet
-        });
-      } catch (err) {
-        console.warn('Could not switch to Ethereum mainnet:', err);
-      }
-    };
-    switchToMainnet();
-  }, []);
+  
 
   // Listen for account changes
   useEffect(() => {
@@ -86,7 +72,6 @@ export default function NavBar(): JSX.Element {
 
       const handleChainChanged = (): void => {
         if (account) {
-          // optional: reload or notify user
         }
       };
 
@@ -151,7 +136,7 @@ export default function NavBar(): JSX.Element {
                     Install MetaMask
                   </a>
                 ) : (
-                  <button
+                 <button
                     onClick={connectWallet}
                     disabled={isConnecting}
                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center shadow-lg hover:shadow-xl"
@@ -162,7 +147,9 @@ export default function NavBar(): JSX.Element {
                         Connecting...
                       </>
                     ) : (
-                      <>Connect Wallet</>
+                      <>
+                        Connect Wallet
+                      </>
                     )}
                   </button>
                 )}
