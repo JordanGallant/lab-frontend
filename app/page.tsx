@@ -5,7 +5,7 @@ export default function page() {
   return (
     <>
     <NavBar/>
-    Hello
+    This is a demo Lab
     </>
     
   )
